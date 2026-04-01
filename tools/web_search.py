@@ -1,7 +1,8 @@
-"""Web search tool backed by the DuckDuckGo Instant Answer API."""
+"""Web search tool backed by the Google Custom Search JSON API."""
 
 from __future__ import annotations
 
+import os
 from typing import Any, Dict, List
 
 import requests
@@ -26,17 +27,39 @@ TOOL_DEFINITION: Dict[str, Any] = {
     },
 }
 
+# Required environment variables:
+#   GOOGLE_API_KEY          – API key from Google Cloud Console
+#   GOOGLE_CSE_ID           – Custom Search Engine ID (cx)
+_API_KEY_VAR = "GOOGLE_API_KEY"
+_CSE_ID_VAR = "GOOGLE_CSE_ID"
+_ENDPOINT = "https://www.googleapis.com/customsearch/v1"
+
 
 def execute(query: str, max_results: int = 5) -> List[Dict[str, str]]:
-    """Hit the DuckDuckGo Instant Answer API and return structured results."""
+    """Hit the Google Custom Search API and return structured results."""
+    api_key = os.environ.get(_API_KEY_VAR)
+    cse_id = os.environ.get(_CSE_ID_VAR)
+
+    if not api_key or not cse_id:
+        return [
+            {
+                "title": "Search unavailable",
+                "url": "",
+                "snippet": (
+                    f"Set {_API_KEY_VAR} and {_CSE_ID_VAR} environment variables. "
+                    f"See https://developers.google.com/custom-search/v1/overview"
+                ),
+            }
+        ]
+
     try:
         resp = requests.get(
-            "https://api.duckduckgo.com/",
+            _ENDPOINT,
             params={
+                "key": api_key,
+                "cx": cse_id,
                 "q": query,
-                "format": "json",
-                "no_html": 1,
-                "skip_disambig": 1,
+                "num": min(max_results, 10),  # API caps at 10 per request
             },
             timeout=10,
         )
@@ -44,28 +67,14 @@ def execute(query: str, max_results: int = 5) -> List[Dict[str, str]]:
         data = resp.json()
 
         results: List[Dict[str, str]] = []
-        for topic in data.get("RelatedTopics", []):
-            if "Text" in topic and "FirstURL" in topic:
-                results.append(
-                    {
-                        "title": topic["Text"][:120],
-                        "url": topic["FirstURL"],
-                        "snippet": topic["Text"],
-                    }
-                )
-            # Handle nested sub-topics
-            elif "Topics" in topic:
-                for sub in topic["Topics"]:
-                    if "Text" in sub and "FirstURL" in sub:
-                        results.append(
-                            {
-                                "title": sub["Text"][:120],
-                                "url": sub["FirstURL"],
-                                "snippet": sub["Text"],
-                            }
-                        )
-            if len(results) >= max_results:
-                break
+        for item in data.get("items", []):
+            results.append(
+                {
+                    "title": item.get("title", ""),
+                    "url": item.get("link", ""),
+                    "snippet": item.get("snippet", ""),
+                }
+            )
 
         return results[:max_results]
 

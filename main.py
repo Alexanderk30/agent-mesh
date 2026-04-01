@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """Agent-mesh — multi-agent orchestration runtime.
 
-Run:  ANTHROPIC_API_KEY=sk-... python main.py
+Run:
+  ANTHROPIC_API_KEY=sk-... \\
+  GOOGLE_API_KEY=... \\
+  GOOGLE_CSE_ID=... \\
+  python main.py
 """
 
 from __future__ import annotations
@@ -11,6 +15,8 @@ import os
 import sys
 
 assert os.environ.get("ANTHROPIC_API_KEY"), "Set ANTHROPIC_API_KEY environment variable"
+assert os.environ.get("GOOGLE_API_KEY"), "Set GOOGLE_API_KEY environment variable"
+assert os.environ.get("GOOGLE_CSE_ID"), "Set GOOGLE_CSE_ID environment variable"
 
 from core.message_bus import MessageBus
 from core.memory_store import MemoryStore
